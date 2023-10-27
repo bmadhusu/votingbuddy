@@ -1,0 +1,6 @@
+CREATE TABLE endorsements
+(id INTEGER PRIMARY KEY AUTO_INCREMENT,
+name INTEGER references candidates(id),
+subject VARCHAR(200),
+statement VARCHAR(200),
+timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP);

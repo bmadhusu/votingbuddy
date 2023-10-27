@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<input id="token" type="hidden" value="{{csrf-token}}" />
+<div id="content"></div>
+{% endblock %}
+{% block page-scripts %}
+  {% script "/js/app.js" %}
+{% endblock %}
+
+
+<!-- {% extends "base.html" %} {% block content %}
+{% endblock %} {% block page-scripts %} {% script "/js/app.js" %} {% endblock %} -->
+
