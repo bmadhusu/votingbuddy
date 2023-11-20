@@ -13,7 +13,8 @@
    [votingbuddy.endorsements :as endorse]
    [votingbuddy.middleware :as middleware]
    [ring.util.http-response :as response]
-   [votingbuddy.middleware.formats :as formats]))
+   [votingbuddy.middleware.formats :as formats]
+   [votingbuddy.auth :as auth]))
 
 (defn service-routes []
   ["/api"

@@ -1,8 +1,8 @@
 CREATE TABLE candidates
-(id INTEGER PRIMARY KEY AUTO_INCREMENT,
-name VARCHAR(50),
-statement VARCHAR(200),
-timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+(id SERIAL PRIMARY KEY,
+name text not null,
+statement text not null,
+timestamp TIMESTAMP not null DEFAULT now());
 
 -- add photo later
 -- add url to official website
