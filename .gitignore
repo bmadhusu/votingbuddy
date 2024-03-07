@@ -21,3 +21,5 @@ output.calva-repl
 /.vscode
 package-lock.json
 Procfile
+guestbook_dev.db.mv.db
+guestbook_dev.db.trace.db

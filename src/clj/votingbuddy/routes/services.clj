@@ -15,7 +15,9 @@
    [ring.util.http-response :as response]
    [votingbuddy.middleware.formats :as formats]
    [votingbuddy.auth :as auth]
-   [spec-tools.data-spec :as ds]))
+   [spec-tools.data-spec :as ds]
+   [votingbuddy.auth.ring :refer [wrap-authorized get-roles-from-match]]
+   [clojure.tools.logging :as log]))
 
 (defn service-routes []
   ["/api"
@@ -26,27 +28,48 @@
                  muuntaja/format-request-middleware
                  coercion/coerce-response-middleware
                  coercion/coerce-request-middleware
-                 multipart/multipart-middleware]
+                 multipart/multipart-middleware
+                 ;;our auth middleware
+                 ;
+                 (fn [handler]
+                   (wrap-authorized
+                    handler
+                    (fn handle-unauthorized [req]
+                      (let [route-roles (get-roles-from-match req)]
+                        (log/debug "Roles for route: "
+                                   (:uri req)
+                                   route-roles)
+                        (log/debug "user is unauthorized!"
+                                   (-> req
+                                       :session
+                                       :identity
+                                       :roles))
+                        (response/forbidden
+                         {:message
+                          (str "User must have one of the following roles: "
+                               route-roles)})))))]
     :muuntaja formats/instance
     :coercion spec-coercion/coercion
     :swagger {:id ::api}}
    ["/session"
-    {:get
+    {::auth/roles (auth/roles :session/get)
+     :get
      {:responses
       {200
-      {:body
-       {:session
-        {:identity (ds/maybe {:login string?
-                              :created_at inst?})}}}}
-    :handler
-    (fn [{{:keys [identity]} :session}]
-      (response/ok {:session
-                    {:identity
-                     (not-empty
-                      (select-keys
-                       identity [:login :created_at]))}}))}}]
+       {:body
+        {:session
+         {:identity (ds/maybe {:login string?
+                               :created_at inst?})}}}}
+      :handler
+      (fn [{{:keys [identity]} :session}]
+        (response/ok {:session
+                      {:identity
+                       (not-empty
+                        (select-keys
+                         identity [:login :created_at]))}}))}}]
    ["/login"
-    {:post {:parameters
+    {::auth/roles (auth/roles :auth/login)
+     :post {:parameters
             {:body
              {:login string?
               :password string?}}
@@ -77,7 +100,8 @@
                     (assoc :session (assoc session :identity user)))
                 (response/unauthorized {:message "Incorrect login or password."})))}}]
    ["/register"
-    {:post {:parameters
+    {::auth/roles (auth/roles :account/register)
+     :post {:parameters
             {:body
              {:login string?
               :password string?
@@ -100,29 +124,110 @@
                                                            (response/conflict {:message "Registration failed! User with login already exists!"})
                                                            (throw e))))))}}]
    ["/logout"
-    {:post {:handler (fn [_] (-> (response/ok) (assoc :session nil)))}}]
+    {::auth/roles (auth/roles :auth/logout)
+     :post {:handler (fn [_] (-> (response/ok) (assoc :session nil)))}}]
 
-   ["" {:no-doc true}
+   ["" {:no-doc true
+        ::auth/roles (auth/roles :swagger/swagger)}
     ["/swagger.json"
      {:get (swagger/create-swagger-handler)}]
     ["/swagger-ui*"
      {:get (swagger-ui/create-swagger-ui-handler
             {:url "/api/swagger.json"})}]]
    ["/endorsements"
-    {:get
-     {:responses
-      {200
-       {:body
-        {:endorsements
-         [{:id pos-int?
-           :subject string?
-           :message string?
-           :timestamp inst?}]}}}
-      :handler
-      (fn [_]
-        (response/ok (endorse/endorsement-list)))}}]
+    {::auth/roles (auth/roles :endorsements/list)}
+    [""
+     {:get
+      {:responses
+       {200
+        {:body
+         {:endorsements
+          [{:subject string?
+            :candidatename string?
+            :statement string?
+            :orgname string?
+            :timestamp inst?}]}}}
+       :handler
+       (fn [_]
+         (response/ok (endorse/endorsement-list)))}}]
+    ["/byauthor/:author"
+     {:get
+      {:parameters {:path {:author string?}}
+       :responses
+       {200
+        {:body
+         {:endorsements
+          [{:subject string?
+            :candidatename string?
+            :statement string?
+            :orgname string?
+            :timestamp inst?}]}}}
+       :handler
+       (fn [{{{:keys [author]} :path} :parameters}]
+         (response/ok (endorse/endorsements-by-author author)))}}]
+    ["/byorg/:orgID"
+     {:get
+      {:parameters {:path {:orgID int?}}
+       :responses
+       {200
+        {:body
+         {:endorsements
+          [{:subject string?
+            :candidatename string?
+            :statement string?
+            :orgname string?
+            :timestamp inst?}]}}}
+       :handler
+       (fn [{{{:keys [orgID]} :path} :parameters}]
+         (response/ok (endorse/endorsements-by-organization orgID)))}}]
+    ["/bycandidate/:candID"
+     {:get
+      {:parameters {:path {:candID int?}}
+       :responses
+       {200
+        {:body
+         {:endorsements
+          [{:subject string?
+            :candidatename string?
+            :statement string?
+            :orgname string?
+            :timestamp inst?}]}}}
+       :handler
+       (fn [{{{:keys [candID]} :path} :parameters}]
+         (response/ok (endorse/endorsements-by-candidate candID)))}}]
+    ["/forcandidate/:candID"
+     {:get
+      {:parameters {:path {:candID int?}}
+       :responses
+       {200
+        {:body
+         {:endorsements
+          [{:subject string?
+            :candidatename string?
+            :statement string?
+            :orgname string?
+            :timestamp inst?}]}}}
+       :handler
+       (fn [{{{:keys [candID]} :path} :parameters}]
+         (response/ok (endorse/endorsements-for-candidate candID)))}}]
+    ["/byaddress/:address"
+     {:get
+      {:parameters {:path {:address string?}}
+       :responses
+       {200
+        {:body
+         {:endorsements
+          [{:subject string?
+            :candidatename string?
+            :statement string?
+            :orgname string?
+            :timestamp inst?}]}}}
+       :handler
+       (fn [{{{:keys [address]} :path} :parameters}]
+         (response/ok (endorse/endorsements-by-address address)))}}]]
    ["/endorsement"
-    {:post
+    {::auth/roles (auth/roles :endorsement/create!)
+     :post
      {:parameters
       {:body
        {:subject string?
@@ -142,6 +247,7 @@
           ;; (println "whole is: " whole)
           ;; (println "params are: " params)
           ;; (endorse/save-endorsement! params)
+          (pr-str "in Hnalder code!")
           (response/ok {:status :ok})
           (catch Exception e
             (let [{id        :votingbuddy/error-id
@@ -152,4 +258,4 @@
                 ;;else
                 (response/internal-server-error
                  {:errors
-                  {:server-error ["Failed to save endorsement!"]}}))))))}}]])
+                  {:server-error ["Failed to save endorsement!!!"]}}))))))}}]])

@@ -1,0 +1,9 @@
+[{:table :candidates
+  :data [{:name "Jack Ryan"
+          :party "Democratic"
+          :vetted false
+          :primaryuserid 1
+          :statement "How ya doin'?"
+
+          }
+]}]

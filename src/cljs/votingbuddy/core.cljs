@@ -2,6 +2,9 @@
   (:require [reagent.core :as r]
             [reagent.dom :as dom]
             [re-frame.core :as rf]
+            [reitit.coercion.spec :as reitit-spec]
+            [reitit.frontend :as rtf]
+            [reitit.frontend.easy :as rtfe]
             [ajax.core :refer [GET POST]]
             [clojure.string :as string]
             [votingbuddy.validation :refer [validate-endorsement]]
@@ -153,15 +156,18 @@
 
 
 (defn endorsement-list [endorsements]
-  (println endorsements)
   [:ul.endorsements
-   (for [{:keys [timestamp subject statement name]} @endorsements]
+   (for [{:keys [candidatename timestamp subject statement orgname]} @endorsements]
      ^{:key timestamp}
      [:li
       [:time (.toLocaleString timestamp)]
+      [:p "Endorsement for " candidatename]
       [:p subject]
       [:p statement]
-      [:p " - " name]])])
+      [:p " - " orgname
+       " <"
+       [:a {:href (str "/user/" orgname)} (str "@" orgname)]
+       ">"]])])
 
 
 
@@ -225,9 +231,11 @@
  (fn [errors [_ id]]
    (get errors id)))
 
-(defn errors-component [id]
+(defn errors-component [id & [message]]
   (when-let [error @(rf/subscribe [:form/error id])]
-    [:div.notification.is-danger (string/join error)]))
+    [:div.notification.is-danger (if message
+                                   message
+                                   (string/join error))]))
 
 (defn text-input [{val    :value
                    attrs  :attrs
@@ -263,6 +271,7 @@
 (defn endorsement-form []
   [:div
    [errors-component :server-error]
+   [errors-component :unauthorized "Please log in before posting."]
    [:div.field
     [:label.label {:for :candidate} "Candidate"]
     [errors-component :candidate]
@@ -333,17 +342,7 @@
        "Loading Endorsements"
        "Refresh Endorsements")]))
 
-(defn home []
-  (let [endorsements (rf/subscribe [:endorsements/list])]
-    (fn []
-      [:div.content>div.columns.is-centered>div.column.is-two-thirds
-       [:div.columns>div.column
-        [:h3 "Endorsements"]
-        [endorsement-list endorsements]]
-       [:div.columns>div.column
-        [reload-endorsements-button]]
-       [:div.columns>div.column
-        [endorsement-form]]])))
+
 
 (rf/reg-event-db
  :app/show-modal
@@ -515,6 +514,29 @@
                      (string/blank? (:confirm @fields)))}
       "Create Account"]]))
 
+(defn home []
+  (let [endorsements (rf/subscribe [:endorsements/list])]
+    (fn []
+      [:div.content>div.columns.is-centered>div.column.is-two-thirds
+       [:div.columns>div.column
+        [:h3 "Endorsements"]
+        [endorsement-list endorsements]]
+       [:div.columns>div.column
+        [reload-endorsements-button]]
+       [:div.columns>div.column
+        (case @(rf/subscribe [:auth/user-state])
+          :loading
+          [:div {:style {:width "5em"}}
+           [:progress.progress.is-dark.is-small {:max 100} "30%"]]
+          :authenticated
+          [endorsement-form]
+          :anonymous
+          [:div.notification.is-clearfix
+           [:span "Log in or create an account to post an endorsement!"]
+           [:div.buttons.is-pulled-right
+            [login-button]
+            [register-button]]])]])))
+
 (rf/reg-sub
  :auth/user-state
  :<- [:auth/user]
@@ -559,21 +581,64 @@
               [nameplate @(rf/subscribe [:auth/user])]
               [logout-button]]
              :anonymous
-               [:div.buttons
-                [login-button]
-                [register-button]])]]]]])))
+             [:div.buttons
+              [login-button]
+              [register-button]])]]]]])))
 
+(defn page [{{:keys [view name]} :data
+             path                :path}]
+  [:section.section>div.container
+   (if view
+     [view]
+     [:div "No view specified for route: " name " (" path ")"])])
 
 (defn app []
-  [:div.app
-   [navbar]
-   [:section.section
-    [:div.container
-     [home]]]])
+  (let [current-route @(rf/subscribe [:router/current-route])]
+
+    [:div.app
+     [navbar]
+     [page current-route]]))
+
+(defn author []
+  [:div
+   [:p "This page hasn't been implemented yet!"]
+   [:a {:href "/"} "Return home"]])
+
+(def routes
+  ["/"
+   ["" {:name ::home
+        :view home}]
+   ["user/:user"
+    {:name ::author
+     :view author}]])
+
+(def router
+  (rtf/router
+   routes
+   {:data {:coercion reitit-spec/coercion}}))
+
+(rf/reg-event-db
+ :router/navigated
+ (fn [db [_ new-match]]
+   (assoc db :router/current-route new-match)))
+
+(rf/reg-sub
+ :router/current-route
+ (fn [db]
+   (:router/current-route db)))
+
+(defn init-routes! []
+  (rtfe/start!
+   router
+   (fn [new-match]
+     (when new-match
+       (rf/dispatch [:router/navigated new-match])))
+   {:use-fragment false}))
 
 (defn ^:dev/after-load mount-components []
   (rf/clear-subscription-cache!)
   (.log js/console "Mounting components...")
+  (init-routes!)
   (dom/render [#'app] (.getElementById js/document "content"))
   (.log js/console "Components Mounted!"))
 
@@ -585,12 +650,4 @@
 
 
 
-
-
-;; (def a {:b 1 :app/active-modals [3]})
-;; (def a (assoc-in nil [:app/active-modals 3] true))
-;; (update a :app/active-modals dissoc 2)
-
-
-;
 

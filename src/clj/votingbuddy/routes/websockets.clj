@@ -5,7 +5,10 @@
    [mount.core :refer [defstate]]
    [votingbuddy.endorsements :as endorse]
    [taoensso.sente :as sente]
-   [taoensso.sente.server-adapters.http-kit :refer [get-sch-adapter]]))
+   [taoensso.sente.server-adapters.http-kit :refer [get-sch-adapter]]
+   [votingbuddy.session :as session]
+   [votingbuddy.auth :as auth]
+   [votingbuddy.auth.ws :refer [authorized?]]))
 
 
 (defstate socket
@@ -28,9 +31,10 @@
    :id    id})
 
 (defmethod handle-endorsement :endorsement/create!
-  [{:keys [?data uid] :as endorsement}]
+  [{:keys [?data uid session] :as endorsement}]
   (let [response (try
-                   (endorse/save-endorsement! ?data)
+                   (log/debug "In websocket code!!")
+                   (endorse/save-endorsement! (:identity session) ?data)
                    (assoc ?data :timestamp (java.util.Date.))
                    (catch Exception e
                      (let [{id         :votingbuddy/error-id
@@ -40,7 +44,7 @@
                          {:errors errors}
                          ;;else
                          {:errors
-                          {:server-error ["Failed to save endorsement!"]}}))))]
+                          {:server-error ["Failed to save endorsement!!"]}}))))]
     (if (:errors response)
       (do
         (log/debug "Failed to save endorsement: " ?data)
@@ -50,11 +54,28 @@
           (send! uid [:endorsement/add response]))
         {:success true}))))
 
-(defn receive-message! [{:keys [id ?reply-fn] :as message}]
-  (log/debug "Got message with id: " id)
-  (let [reply-fn (or ?reply-fn (fn [_]))]
-    (when-some [response (handle-endorsement message)]
-      (reply-fn response))))
+(defn receive-endorsement! [{:keys [id ?reply-fn ring-req]
+                             :as endorsement}]
+  (case id
+    :chsk/bad-package     (log/debug "Bad Package:\n" endorsement)
+    :chsk/badevent       (log/debug "Bad Event:\n" endorsement)
+    :chsk/uidport-open    (log/trace (:event endorsement))
+    :chsk/uidport-close   (log/trace (:event endorsement))
+    :chsk/ws-ping         nil
+    ;;ELSE
+    (let [reply-fn (or ?reply-fn (fn [_]))
+          session (session/read-session ring-req)
+          endorsement (-> endorsement
+                          (assoc :session session))]
+      (log/debug "Got endorsement with id: " id)
+      (log/debug "endorsement is " endorsement)
+      (if (authorized? auth/roles endorsement)
+        (when-some [response (handle-endorsement endorsement)]
+          (reply-fn response))
+        (do
+          (log/info "Unauthorized message: " id)
+          (reply-fn {:message "You are not authorized to perform this action!"
+                     :errors {:unauthorized true}}))))))
 
 ;; (defonce channels (atom #{}))
 
@@ -73,17 +94,17 @@
 ;;     (http-kit/on-close channel (partial disconnect! channel))
 ;;     (http-kit/on-receive channel (partial handle-endorsement! channel))))
 
-(defstate channel-router
-  :start (sente/start-chsk-router!
-          (:ch-recv socket)
-          #'receive-message!)
-  :stop (when-let [stop-fn channel-router]
-          (stop-fn)))
+  (defstate channel-router
+    :start (sente/start-chsk-router!
+            (:ch-recv socket)
+            #'receive-endorsement!)
+    :stop (when-let [stop-fn channel-router]
+            (stop-fn)))
 
-(defn websocket-routes []
-  ["/ws"
-   {:middleware [middleware/wrap-csrf
-                 middleware/wrap-formats]
-    :get (:ajax-get-or-ws-handshake-fn socket)
-    :post (:ajax-post-fn socket)}])
+  (defn websocket-routes []
+    ["/ws"
+     {:middleware [middleware/wrap-csrf
+                   middleware/wrap-formats]
+      :get (:ajax-get-or-ws-handshake-fn socket)
+      :post (:ajax-post-fn socket)}])
 
