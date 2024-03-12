@@ -3,7 +3,9 @@
    [votingbuddy.db.core :as db]
    [votingbuddy.config :refer [env]]
    [org.httpkit.client :as http]
-   [votingbuddy.validation :refer [validate-endorsement]]))
+   [votingbuddy.validation :refer [validate-endorsement]]
+   [cheshire.core :refer :all]
+   [cheshire.core :as cheshire]))
 
 
 (defn endorsement-list []
@@ -37,21 +39,51 @@
 (defn endorsements-for-candidate [candID]
   {:endorsements (vec (db/get-endorsements-for-candidate {:candID candID}))})
 
-(defn endorsements-by-ocdid [electionID ocdList]
-  {:endorsements (vec (db/get-endorsements-by-ocd {:electionID electionID :ocds ocdList}))})
+(defn endorsements-by-office [electionID officeList]
+  {:endorsements (vec (db/get-endorsements-by-office {:electionID electionID :offices officeList}))})
 
 (defn endorsements-by-address [address]
+
   (let [api-url "https://content-civicinfo.googleapis.com/civicinfo/v2/representatives"
         api-key (env :civicinfo-key)
         opts {:query-params {:address address
                              :key api-key}}
         {:keys [status headers body error] :as resp}
-        @(http/get api-url opts)]
+        @(http/get api-url opts)
+        parse-into-json #(parse-string % true)]
 
-    (print resp)
-    resp
-  ;;  (endorsements-by-ocdid x y)
-    ))
+    ;;  (-> body
+    ;;      (parse-string true)
+    ;;      (get :offices)))
 
+    (as-> body b
+      (parse-string b true)
+      (get b :offices)
+      (map #(dissoc % :officialIndices) b)
+      (map generate-string b)
+      (endorsements-by-office 1 (into-array b))
+      (:endorsements b)
+      (map #(update % :office_info str)  b)
+      (map #(update % :office_info parse-into-json) b)
+      (map #(update % :incumbent str) b)
+      (map #(update % :incumbent parse-into-json) b))))
+
+    ;; (map #(update % :office_info (comp (partial parse-string true) str)) (:endorsements offices4) )
+
+  ;;  (endorsements-by-office x y)
+
+
+(comment
+  (def resp  (endorsements-by-address "41-57 76 Street, elmhurst ny"))
+
+  (def xxy (generate-string resp))
+  (def abc (map generate-string resp))
+  (into-array abc)
+
+  (def gg (endorsements-by-office 1  (into-array abc)))
+
+  ;; from: https://stackoverflow.com/questions/45586197/pgobject-type-conversion-in-clojure
+
+  )
 
 

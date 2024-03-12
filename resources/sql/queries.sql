@@ -12,8 +12,8 @@ SELECT c.candidateName, e.statement, subject, orgname, e.timestamp FROM endorsem
 ON e.linkedID = o.id INNER JOIN candidates c
 ON e.forcandidateid = c.id
 
--- :name get-endorsements-by-ocd :? :*
--- :doc selects all endorsements by ocd
+-- :name get-endorsements-by-office :? :*
+-- :doc selects all endorsements by office
 SELECT c.candidateName, of.*, e.statement, subject, orgname, e.timestamp
 FROM endorsements e INNER JOIN organizations org
 ON e.linkedID = org.id INNER JOIN candidates c
@@ -22,7 +22,9 @@ on c.officeid = of.id inner join electionsoffices eo
 on of.id = eo.officeid inner join elections el
 on eo.electionid = el.id 
 where el.id = :electionID
-and of.ocdid in (:v*:ocds)
+and of.office_info @> any(array[:offices]::jsonb[])
+--and of.office_info @> any(:offices)::jsonb[]
+--and of.office_info in (:v*:offices)
 
 
 -- :name get-endorsements-by-author :? :*
