@@ -149,6 +149,7 @@
             :timestamp inst?}]}}}
        :handler
        (fn [_]
+         (Thread/sleep 500)
          (response/ok (endorse/endorsement-list)))}}]
     ["/byauthor/:author"
      {:get
@@ -164,7 +165,7 @@
             :timestamp inst?}]}}}
        :handler
        (fn [{{{:keys [author]} :path} :parameters}]
-         (response/ok (endorse/endorsements-by-author author)))}}]
+         (response/ok (endorse/endorsements-by-author 1 author)))}}]
     ["/byorg/:orgID"
      {:get
       {:parameters {:path {:orgID int?}}
@@ -224,7 +225,9 @@
             :timestamp inst?}]}}}
        :handler
        (fn [{{{:keys [address]} :path} :parameters}]
-         (response/ok (endorse/endorsements-by-address address)))}}]]
+         (let [result (endorse/endorsements-by-address address)]
+           (println "Result is: " result)
+           (response/ok result)))}}]]
    ["/endorsement"
     {::auth/roles (auth/roles :endorsement/create!)
      :post

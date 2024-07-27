@@ -31,8 +31,12 @@ and of.office_info @> any(array[:offices]::jsonb[])
 -- :doc selects all endorsements posted by author
 SELECT c.candidateName, e.statement, subject, orgname, e.timestamp FROM endorsements e INNER JOIN organizations o
 ON e.linkedID = o.id INNER JOIN candidates c
-ON e.forcandidateid = c.id
-WHERE sourceuserid = :author
+ON e.forcandidateid = c.id INNER JOIN offices of
+ON c.officeid = of.id INNER JOIN electionsoffices eo
+ON of.id = eo.officeid INNER JOIN elections el
+ON eo.electionid = el.id
+WHERE el.id = :electionID
+AND orgname = :author
 
 -- :name get-endorsements-by-organization :? :*
 -- :doc selects all endorsements posted by an org

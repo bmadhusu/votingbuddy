@@ -2,25 +2,24 @@
   (:require
    [votingbuddy.middleware :as middleware]
    [votingbuddy.layout :refer [error-page]]
-   [votingbuddy.routes.home :refer [home-routes]]
+   [votingbuddy.routes.app :refer [app-routes]]
    [votingbuddy.routes.services :refer [service-routes]]
    [reitit.ring :as ring]
    [votingbuddy.routes.websockets :refer [websocket-routes]]
    [ring.middleware.content-type :refer [wrap-content-type]]
    [ring.middleware.webjars :refer [wrap-webjars]]
    [votingbuddy.env :refer [defaults]]
-   [mount.core :as mount]
-   [reitit.ring.middleware.dev :as dev]))
+   [mount.core :as mount]))
 
 (mount/defstate init-app
   :start ((or (:init defaults) (fn [])))
   :stop  ((or (:stop defaults) (fn []))))
 
-(mount/defstate app-routes
+(mount/defstate routes
   :start
   (ring/ring-handler
    (ring/router
-    [(home-routes)
+    [(app-routes)
      (service-routes)
      (websocket-routes)]
     ;; this next line is good for debugging middleware; see p.113 in book
@@ -40,4 +39,4 @@
       (constantly (error-page {:status 406, :title "406 - Not acceptable"}))}))))
 
 (defn app []
-  (middleware/wrap-base #'app-routes))
+  (middleware/wrap-base #'routes))
