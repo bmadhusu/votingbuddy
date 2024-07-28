@@ -2,6 +2,7 @@
 /lib
 /classes
 /checkouts
+src/clj/votingbuddy/voterinfo.clj
 pom.xml
 dev-config.edn
 test-config.edn
