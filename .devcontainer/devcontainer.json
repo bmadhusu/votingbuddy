@@ -1,0 +1,36 @@
+// For format details, see https://aka.ms/vscode-remote/devcontainer.json
+{
+	"name": "Clojure",
+
+	"dockerComposeFile": "docker-compose_dev.yml",
+
+	"service": "app",
+	"shutdownAction": "stopCompose",
+	"workspaceFolder": "/workspace",
+
+	"forwardPorts": [3000, 5432],
+	"portsAttributes": {
+        "3000": {"label": "frontend web port", "onAutoForward": "notify"},
+        "5432": {"label": "PostgreSQL Port", "onAutoForward": "silent"},
+    },
+
+
+	// Set *default* container specific settings.json values on container create.
+	"customizations": {
+		"vscode": {
+		  "settings": {"java.home": "/usr/bin/java"},
+		  "extensions": ["betterthantomorrow.calva"]
+		}
+	  },
+
+
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// "forwardPorts": [],
+
+	// Use 'postCreateCommand' to run commands after the container is created.
+	// "postCreateCommand": "npm install -g shadow-cljs",
+	"postCreateCommand": "npm install",
+
+	// Uncomment to connect as a non-root user. See https://aka.ms/vscode-remote/containers/non-root.
+	// "remoteUser": "vscode"
+}
