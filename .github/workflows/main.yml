@@ -18,7 +18,6 @@ jobs:
               with:
                 distribution: 'temurin'
                 java-version: 21
-            - run: java -cp java HelloWorldApp
             
             - name: Install clojure tools
               uses: DeLaGuardo/setup-clojure@12.5
