@@ -1,0 +1,77 @@
+name: Build and deploy Clojure app
+
+on:
+    push: 
+        branches:
+            - main
+
+jobs:
+    build-deploy:
+        name: Build and deploy Voting buddy
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Setup JDK
+              uses: actions/setup-java@v4
+              with:
+                distribution: 'temurin'
+                java-version: 21
+            - run: java -cp java HelloWorldApp
+            
+            - name: Install clojure tools
+              uses: DeLaGuardo/setup-clojure@12.5
+              with:
+                # Install just one or all simultaneously
+                # The value must indicate a particular version of the tool, or use 'latest'
+                # to always provision the latest version
+                cli: 1.10.1.693              # Clojure CLI based on tools.deps
+                lein: 2.9.1                  # Leiningen
+                boot: 2.8.3                  # Boot.clj
+                bb: 0.7.8                    # Babashka
+                clj-kondo: 2022.05.31        # Clj-kondo
+                cljfmt: 0.10.2               # cljfmt
+                cljstyle: 0.15.0             # cljstyle
+                zprint: 1.2.3                # zprint
+
+            - name: Execute clojure code
+              run: clojure -e "(+ 1 1)"
+                
+            - name: Get leiningen version
+              run: lein -v
+            
+            - name: Get boot version
+              run: boot -V
+    
+            - name: Get babashka version
+              run: bb --version
+        
+            - name: Get clj-kondo version
+              run: clj-kondo --version
+    
+            - name: Get cljfmt version
+              run: cljfmt --version
+    
+            - name: Get cljstyle version
+              run: cljstyle version
+    
+            - name: Get zprint version
+              run: zprint --version
+
+            # - name: Unit Tests
+            #   run: mvn -B test --file pom.xml
+  
+            - name: Build the application
+              run: lein uberjar
+
+            
+
+
+
+
+
+
+
+
+
