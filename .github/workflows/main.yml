@@ -75,7 +75,7 @@ jobs:
               with:
                 context: .
                 push: false
-                tags: ${{ secrets.DOCKER_HUB_USERNAME }}/votingbuddy:$(date+'%Y-%m-%d%H-%M-%S')
+                tags: ${{ secrets.DOCKER_HUB_USERNAME }}/votingbuddy:$(date +'%Y-%m-%dT%H:%M:%S')
 
             - name: Login to DockerHub
               uses: docker/login-action@v3
@@ -88,7 +88,7 @@ jobs:
               with:
                 context: .
                 push: true
-                tags: ${{ secrets.DOCKER_HUB_USERNAME }}/votingbuddy:$(date+'%Y-%m-%d%H-%M-%S')
+                tags: ${{ secrets.DOCKER_HUB_USERNAME }}/votingbuddy:$(date +'%Y-%m-%dT%H:%M:%S')
 
 
 
