@@ -70,13 +70,6 @@ jobs:
             - name: Build the application
               run: lein uberjar
 
-            - name: Build the Docker image
-              uses: docker/build-push-action@v6
-              with:
-                context: .
-                push: false
-                tags: ${{ secrets.DOCKER_HUB_USERNAME }}/votingbuddy:$(date +'%Y-%m-%dT%H:%M:%S')
-
             - name: Login to DockerHub
               uses: docker/login-action@v3
               with:
