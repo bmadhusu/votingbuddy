@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  production:
+    profiles: [production]
+    image: DOCKER_IMAGE_NAME:latest
+    container_name: DOCKER_CONTAINER_NAME
+    restart: unless-stopped
+    volumes:
+        - ./nani:/app
+    ports:
+        - "3000:3000"
+    environment:
+        - DJANGO_SETTINGS_MODULE=app.nani.settings
