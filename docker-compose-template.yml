@@ -9,4 +9,5 @@ services:
     ports:
         - "3000:3000"
     environment:
-        - DJANGO_SETTINGS_MODULE=app.nani.settings
+        - CIVICINFO_KEY=$CIVICINFO_KEY
+        - DATABASE_URL=$POSTGRES_URL
