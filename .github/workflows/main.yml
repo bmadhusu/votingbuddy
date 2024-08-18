@@ -130,7 +130,7 @@ jobs:
                 script: |
                   docker compose -f /home/${{ secrets.GCE_SSH_USERNAME }}/docker-compose.yml --profile production down
                   docker compose -f /home/${{ secrets.GCE_SSH_USERNAME }}/docker-compose.yml --profile production build --pull
-                  docker compose -f /home/${{ secrets.GCE_SSH_USERNAME }}/docker-compose.yml -e CIVICINFO_KEY=${{ secrets.CIVICINFOKEY }} -e DATABASE_URL=${{ secrets.POSTGRES_URL }} --profile production up -d
+                  CIVICINFO_KEY=${{ secrets.CIVICINFOKEY }} POSTGRES_URL=${{ secrets.POSTGRES_URL }} docker compose -f /home/${{ secrets.GCE_SSH_USERNAME }}/docker-compose.yml --profile production up -d
 
                   docker image prune -f
 
