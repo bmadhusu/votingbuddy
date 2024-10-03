@@ -56,7 +56,7 @@
              (assoc new-match
                     :controllers
                     (rtfc/apply-controllers controllers new-match))]
-         (rf/dispatch [:router/navigated new-match]))))
+         (rf/dispatch [:router/navigated new-match-with-controllers]))))
    {:use-fragment false}))
 
 (defn navbar []

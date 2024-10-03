@@ -81,3 +81,29 @@ VALUES (:login, :password)
 SELECT * FROM users
 WHERE login = :login
 
+-- :name set-profile-for-user* :<! :1
+-- :doc sets a profile map for the specified user
+UPDATE users
+SET profile = :profile
+where :login = login
+RETURNING *;
+
+-- :name get-user* :? :1
+-- :doc gets a user's publicly available information
+SELECT login, created_at, profile from users
+WHERE login = :login
+
+-- :name save-file! :! :n
+-- saves a file to the database
+INSERT INTO media
+(name, type, owner, data)
+VALUES (:name, :type, :owner, :data)
+ON CONFLICT (name) DO UPDATE
+SET type = :type,
+    data = :data
+WHERE media.owner = :owner
+
+-- :name get-file :? :1
+-- Gets a file from the database
+select * from media
+where name = :name

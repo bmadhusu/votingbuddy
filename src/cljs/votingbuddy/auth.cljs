@@ -3,6 +3,7 @@
    [clojure.string :as string]
    [reagent.core :as r]
    [re-frame.core :as rf]
+   [reitit.frontend.easy :as rtfe]
    [votingbuddy.modals :as m]
    [ajax.core :refer [POST]]))
 
@@ -108,7 +109,9 @@
    "Log Out"])
 
 (defn nameplate [{:keys [login]}]
-  [:button.button.is-primary login])
+  [:a.button.is-primary
+   {:href (rtfe/href :votingbuddy.routes.app/profile)}
+   login])
 
 (defn register-button []
   (r/with-let

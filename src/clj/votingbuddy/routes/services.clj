@@ -17,7 +17,13 @@
    [votingbuddy.auth :as auth]
    [spec-tools.data-spec :as ds]
    [votingbuddy.auth.ring :refer [wrap-authorized get-roles-from-match]]
-   [clojure.tools.logging :as log]))
+   [clojure.tools.logging :as log]
+   [clojure.string :as string]
+   [votingbuddy.author :as author]
+   [clojure.java.io :as io]
+   [votingbuddy.db.core :as db]
+   [votingbuddy.media :as media]
+   [clojure.spec.alpha :as s]))
 
 (defn service-routes []
   ["/api"
@@ -51,6 +57,72 @@
     :muuntaja formats/instance
     :coercion spec-coercion/coercion
     :swagger {:id ::api}}
+   ["/author/:login"
+    {::auth/roles (auth/roles :author/get)
+     :get {:parameters
+           {:path {:login string?}}
+           :responses
+           {200
+            {:body map?}
+            500
+            {:errors map?}}
+           :handler
+           (fn [{{{:keys [login]} :path} :parameters}]
+             (response/ok (author/get-author login)))}}]
+   ["/my-account"
+    ["/set-profile"
+     {::auth/roles (auth/roles :account/set-profile!)
+      :post {:parameters
+             {:body
+              {:profile map?}}
+             :responses
+             {200
+              {:body map?}
+              500
+              {:errors map?}}
+             :handler
+             (fn [{{{:keys [profile]} :body}    :parameters
+                   {:keys [identity] :as session} :session}]
+               (try
+                 (let [identity
+                       (author/set-author-profile (:login identity) profile)]
+                   (update (response/ok {:success true})
+                           :session
+                           assoc :identity identity))
+                 (catch Exception e
+                   (log/error e)
+                   (response/internal-server-error
+                    {:errors {:server-error
+                              ["Failed to set profile!"]}}))))}}]
+    ["/media/upload"
+     {::auth/roles (auth/roles :media/upload)
+      :post {:parameters {:multipart {:avatar multipart/temp-file-part
+                                      :banner multipart/temp-file-part}}
+             :handler
+             (fn [{{{:keys [avatar banner] :as mp} :multipart} :parameters
+                   {:keys [identity] :as session} :session
+                   :as req}]
+               (response/ok
+                {:avatar (str "/api/media/"
+                              (media/insert-image-returning-name
+                               (assoc avatar :filename (str (:login identity)
+                                                            "_avatar"))
+                               {:owner (:login identity)}))
+                 :banner (str "/api/media/"
+                              (media/insert-image-returning-name
+                               (assoc banner :filename (str (:login identity)
+                                                            "_banner"))
+                               {:owner (:login identity)}))}))}}]]
+   ["/media/:name"
+    {::auth/roles (auth/roles :media/get)
+     :get {:parameters
+           {:path {:name string?}}
+           :handler (fn [{{{:keys [name]} :path} :parameters}]
+                      (if-let [{:keys [data type]} (db/get-file {:name name})]
+                        (-> (io/input-stream data)
+                            (response/ok)
+                            (response/content-type type))
+                        (response/not-found)))}}]
    ["/session"
     {::auth/roles (auth/roles :session/get)
      :get
@@ -59,14 +131,15 @@
        {:body
         {:session
          {:identity (ds/maybe {:login string?
-                               :created_at inst?})}}}}
+                               :created_at inst?
+                               :profile map?})}}}}
       :handler
       (fn [{{:keys [identity]} :session}]
         (response/ok {:session
                       {:identity
                        (not-empty
                         (select-keys
-                         identity [:login :created_at]))}}))}}]
+                         identity [:login :created_at :profile]))}}))}}]
    ["/login"
     {::auth/roles (auth/roles :auth/login)
      :post {:parameters

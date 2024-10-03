@@ -26,6 +26,10 @@
 
 (def roles
 {:endorsement/create! #{:authenticated}
+ :media/get #{:any}
+ :media/upload #{:authenticated}
+ :author/get #{:any}
+ :account/set-profile! #{:authenticated}
  :auth/login #{:any}
  :auth/logout #{:any}
  :account/register #{:any}
