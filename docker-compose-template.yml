@@ -1,0 +1,13 @@
+services:
+  production:
+    profiles: [production]
+    image: DOCKER_IMAGE_NAME
+    container_name: DOCKER_CONTAINER_NAME
+    restart: unless-stopped
+    volumes:
+        - ./nani:/app
+    ports:
+        - "3000:3000"
+    environment:
+        - CIVICINFO_KEY=$CIVICINFO_KEY
+        - DATABASE_URL=$POSTGRES_URL
